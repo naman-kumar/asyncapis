@@ -26,6 +26,8 @@ class TaskPool(object):
     async def worker(self):
         while True:
             future, task = await self.tasks.get()
+            if task is TERMINATOR:
+                break
             result = await asyncio.wait_for(task, None, loop=self.loop)
             future.set_result(result)
 
@@ -38,10 +40,8 @@ class TaskPool(object):
         await asyncio.gather(*self.workers, loop=self.loop)
 
     def stop(self):
-        try:
-            self.loop.call_soon_threadsafe(self.loop.stop)
-        except Exception as e:
-            pass
+        for _ in self.workers:
+            asyncio.run_coroutine_threadsafe(self.tasks.put((None, TERMINATOR)), loop=self.loop)
 
 
 @dataclass
